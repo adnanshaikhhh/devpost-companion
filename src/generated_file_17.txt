@@ -1,0 +1,122 @@
+// frontend/app.js
+// DevPost Companion — single-file React app via htm + esm.sh
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "https://esm.sh/react@18.3.1";
+import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+import htm from "https://esm.sh/htm@3.1.1";
+
+const html = htm.bind(React.createElement);
+const e = React.createElement;
+
+// --- API client ---
+const API = {
+  async listProjects() {
+    const r = await fetch("/api/projects/");
+    return r.json();
+  },
+  async createProject(p) {
+    const r = await fetch("/api/projects/", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    });
+    return r.json();
+  },
+  async generate(p) {
+    const r = await fetch("/api/generate/", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    });
+    return r.json();
+  },
+  async generateAndSave(p) {
+    const r = await fetch("/api/generate/save", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    });
+    return r.json();
+  },
+  async getMetrics() {
+    const r = await fetch("/api/metrics/");
+    return r.json();
+  },
+  async getShare(id) {
+    const r = await fetch(`/api/share/${id}`);
+    return r.json();
+  },
+  async getMarkdown(id) {
+    const r = await fetch(`/api/share/${id}/markdown`);
+    return r.text();
+  },
+  async deleteProject(id) {
+    const r = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    return r.json();
+  },
+};
+
+// --- Helpers ---
+const cls = (...xs) => xs.filter(Boolean).join(" ");
+const fmt = (n) => (n ?? 0).toLocaleString();
+const token = (text) => (text || "").split(/[\s,]+/).filter(Boolean).length;
+
+function AnimatedNumber({ value, duration = 1200 }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let start = null;
+    const target = Number(value) || 0;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min(1, (ts - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(eased * target));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [value, duration]);
+  return n;
+}
+
+function RadarChart({ data, size = 260 }) {
+  // data: { clarity, innovation, feasibility, polish, originality }
+  const labels = ["Clarity", "Innovation", "Feasibility", "Polish", "Originality"];
+  const keys = ["clarity", "innovation", "feasibility", "polish", "originality"];
+  const cx = size / 2, cy = size / 2, r = size / 2 - 30;
+  const angle = (i) => (Math.PI * 2 * i) / keys.length - Math.PI / 2;
+  const point = (i, v) => {
+    const a = angle(i);
+    const rr = (r * v) / 100;
+    return [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr];
+  };
+  const polygon = keys.map((k, i) => point(i, data?.[k] ?? 0).join(",")).join(" ");
+  return html`
+    <svg viewBox=${`0 0 ${size} ${size}`} className="w-full h-auto">
+      <defs>
+        <radialGradient id="rg" cx="50%" cy="50%">
+          <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.7" />
+          <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.2" />
+        </radialGradient>
+        <linearGradient id="stroke" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#22d3ee" />
+          <stop offset="100%" stop-color="#a78bfa" />
+        </linearGradient>
+      </defs>
+      ${[20, 40, 60, 80, 100].map((v, idx) => {
+        const pts = keys.map((_, i) => point(i, v).join(",")).join(" ");
+        return html`<polygon key=${idx} points=${pts} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />`;
+      })}
+      ${keys.map((_, i) => {
+        const [x, y] = point(i, 100);
+        return html`<line key=${i} x1=${cx} y1=${cy} x2=${x} y2=${y} stroke="rgba(255,255,255,0.08)" />`;
+      })}
+      <polygon points=${polygon} fill="url(#rg)" stroke="url(#stroke)" strokeWidth="2" style=${{ transition: "all 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
+      ${keys.map((k, i) => {
+        const [x, y] = point(i, data?.[k] ?? 0);
+        return html`<circle key=${k} cx=${x} cy=${y} r="4" fill="#22d3ee" />`;
+      })}
+      ${labels.map((lbl, i) => {
+        const [x, y] = point(i, 120);
+        return html`<text key=${lbl} x=${x} y=${y} textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.7)" fontSize="11" fontWeight="600">${lbl}</text>`;
+      })}
+    </svg>
+  `;
+}
+
+// ... (rest of components)
