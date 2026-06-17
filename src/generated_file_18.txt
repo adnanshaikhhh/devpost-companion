@@ -1,0 +1,13 @@
+function clientJudgeAppeal(name, problem, techStack, description) {
+  // Heuristic mirror of the server's analyze_judge_appeal
+  const text = `${name} ${problem} ${techStack} ${description}`.toLowerCase();
+  const nameLen = (name || "").split(/\s+/).filter(Boolean).length;
+  const problemLen = (problem || "").split(/\s+/).filter(Boolean).length;
+  const techCount = (techStack || "").split(/[,\s]+/).filter(Boolean).length;
+  const clarity = Math.max(20, Math.min(100, 50 + problemLen * 2 - Math.abs(nameLen - 2) * 5));
+  const innovation = Math.max(20, Math.min(100, 50 + (text.match(/\b(ai|agent|automation|real-time|instant|llm|rag|generative)\b/g) || []).length * 6));
+  const feasibility = Math.max(20, Math.min(100, 55 + techCount * 6));
+  const polish = Math.max(20, Math.min(100, 45 + (text.match(/\b(beautiful|delightful|polished|fast|simple|smart)\b/g) || []).length * 4));
+  const originality = Math.max(20, Math.min(100, 50 + (text.match(/\b(companion|sidekick|buddy|copilot|wizard)\b/g) || []).length * 5));
+  return { clarity, innovation, feasibility, polish, originality };
+}
