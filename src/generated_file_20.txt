@@ -1,0 +1,26 @@
+function SmoothRadarChart({ data, size = 260 }) {
+  const [display, setDisplay] = useState({ clarity: 0, innovation: 0, feasibility: 0, polish: 0, originality: 0 });
+  const fromRef = useRef({ clarity: 0, innovation: 0, feasibility: 0, polish: 0, originality: 0 });
+  
+  useEffect(() => {
+    const from = { ...fromRef.current };
+    const to = { ...display, ...data };
+    let start = null;
+    const duration = 800;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min(1, (ts - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const next = {};
+      for (const k of Object.keys(to)) {
+        next[k] = Math.round(from[k] + (to[k] - from[k]) * eased);
+      }
+      setDisplay(next);
+      if (p < 1) requestAnimationFrame(step);
+      else fromRef.current = to;
+    };
+    requestAnimationFrame(step);
+  }, [data?.clarity, data?.innovation, data?.feasibility, data?.polish, data?.originality]);
+  
+  // ... render with display values
+}
